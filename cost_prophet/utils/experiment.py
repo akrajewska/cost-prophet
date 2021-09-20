@@ -1,51 +1,35 @@
-import functools
+import os
 
-import dask
-import numpy as np
 import pandas as pd
-from fancyimpute import Solver
-from dask.distributed import Client
-from cost_prophet.utils.evaluation import test_error
 from dask import delayed, compute
+from dotenv import dotenv_values
+
+from cost_prophet.utils.evaluation import test_error
+from cost_prophet.utils.linear_alebra import get_known_indices, split_tests_sets
+
+config = dotenv_values()
+
+OUTPUT_DIR = config.get("OUTPUT_DIR")
 
 
-def split_tests_sets(known_indices: list, X: np.ndarray, split_rate: float = 0.75) -> tuple:
-    test_indices = []
-    train_indices = []
-    X_train = np.array(X, copy=True)
-    for idx in known_indices:
-        ro = np.random.uniform()
-        if ro < split_rate and np.count_nonzero(~np.isnan(X_train[:, idx[1]])) > 1 and np.count_nonzero(
-                ~np.isnan(X_train[idx[0]])) > 1:
-            test_indices.append(idx)
-            X_train[tuple(idx)] = np.nan
-        else:
-            train_indices.append(idx)
-    return test_indices, train_indices, X_train
-
-
-def get_known_indices(X: np.ndarray) -> list:
-    return np.argwhere(~np.isnan(X)).tolist()
-
-
-def run_trial(solver, param, X, known_indices, trial):
+def run_trial(solver, X, known_indices, trial):
     test_indices, train_indices, X_train = split_tests_sets(known_indices, X)
-    X_soft_impute_results = solver.run(X_train, trial)
+    X_soft_impute_results = solver.fit_transform(X_train)
     results = []
     for shrinkage_value, X_out in X_soft_impute_results:
-        test_error = test_error(X_out, X, test_indices)
-        results.append([param, trial, shrinkage_value, test_error])
+        _test_error = test_error(X_out, X, test_indices)
+        results.append([trial, shrinkage_value, _test_error])
     return results
+
 
 def experiment(solver, trials, X):
     errors = []
     known_indices = get_known_indices(X)
-    params = [1]
-    for param in params:
-        for trial in range(trials):
-            _nrmse_data = delayed(run_trial)(solver, param, X, known_indices, trial)
-            errors.append(_nrmse_data)
+    for trial in range(trials):
+        _test_error_data = delayed(run_trial)(solver, X, known_indices, trial)
+        errors += _test_error_data
     errors = compute(errors)
-    #TODO dlaczego jest tuple?
+    # TODO dlaczego jest tuple?
     df = pd.DataFrame(data=errors[0], columns=['param', 'trial', 'shrinkage value', 'test error'])
+    df.to_csv(os.path.join(OUTPUT_DIR, type(solver).__name__))
     return df

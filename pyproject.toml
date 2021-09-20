@@ -12,6 +12,8 @@ seaborn = "^0.11.2"
 dask = "^2021.8.1"
 graphviz = "^0.17"
 distributed = "^2021.9.0"
+python-dotenv = "^0.19.0"
+matrix-completion = { path = "../matrix-completion/", develop = true }
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
 

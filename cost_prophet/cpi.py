@@ -2,11 +2,21 @@ import os
 from dask.distributed import Client
 import pandas as pd
 
-from fancyimpute import SoftImputeWarmStarts, SoftImpute
+from fancyimpute import SoftImputeWarmStarts, IterativeSVD
+#TODO dlaczego nie dzialaja relative imports
 from cost_prophet.utils.experiment import experiment
+from cost_prophet.utils.linear_alebra import get_ranks_grid
+from cost_prophet.imput_runner import ImputeRunner, SVTImputeRunner
+from dotenv import dotenv_values
+from copy import deepcopy
+from collections import OrderedDict
+from matrix_completion import svt_solve
+import numpy as np
 
-DATA_DIR = '/home/tosia/cost_prophet/DATA'
-OUTPUT_DIR = '/home/tosia/cost_prophet/OUTPUT'
+config = dotenv_values()
+
+DATA_DIR = config.get("DATA_DIR")
+
 trace_file_name = 'results-20210621-222050.json'
 trace_file = os.path.join(DATA_DIR, trace_file_name)
 
@@ -14,7 +24,31 @@ df = pd.read_json(trace_file)
 df = pd.pivot_table(df, values="f0_", index="machine_id", columns="collection_id")
 X = df.to_numpy()
 trials = 2
-solver = SoftImputeWarmStarts(max_iters=1000, min_value=0.2, convergence_threshold=0.0001, init_fill_method='mean', verbose=False)
+# solver = SoftImputeWarmStarts(max_iters=1, min_value=0.2, convergence_threshold=0.0001, init_fill_method='mean', verbose=False)
+# df = experiment(solver, trials, X)
 
-df = experiment(solver, trials, X)
-df.to_csv(os.path.join(OUTPUT_DIR, 'softimpute.csv'))
+solver_kwargs = OrderedDict({"max_iters":100,
+          "min_value": 0.2,
+          "convergence_threshold": 0.0001,
+          "init_fill_method": "mean",
+          "verbose": False})
+
+
+runner = ImputeRunner(solver_cls=SoftImputeWarmStarts, solver_kwargs=solver_kwargs, params=[{'shrinkage_values_number': 10}])
+runner.run(X, 5)
+
+
+# ranks = get_ranks_grid(X, 50)
+# solver_kwargs = OrderedDict({"max_iters":100,
+#           "min_value": 0.2,
+#           "convergence_threshold": 0.001,
+#           "init_fill_method": "mean",
+#           "verbose": False,
+#           "gradual_rank_increase": False})
+# params = [{'rank': rank} for rank in ranks]
+#
+# runner = ImputeRunner(solver_cls=IterativeSVD, solver_kwargs=solver_kwargs, params=params)
+# runner.run(X, 2)
+
+# runner = SVTImputeRunner(svt_solve, {'kick_device': True}, [{'tau': None}])
+# runner.run(X, 2)
