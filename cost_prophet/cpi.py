@@ -1,17 +1,13 @@
 import os
-from dask.distributed import Client
-import pandas as pd
-
-from fancyimpute import SoftImputeWarmStarts, IterativeSVD
-#TODO dlaczego nie dzialaja relative imports
-from cost_prophet.utils.experiment import experiment
-from cost_prophet.utils.linear_alebra import get_ranks_grid
-from cost_prophet.imput_runner import ImputeRunner, SVTImputeRunner
-from dotenv import dotenv_values
-from copy import deepcopy
 from collections import OrderedDict
-from matrix_completion import svt_solve
-import numpy as np
+
+import pandas as pd
+from dotenv import dotenv_values
+from fancyimpute import IterativeSVD
+
+from cost_prophet.imput_runner import ImputeRunner
+# TODO dlaczego nie dzialaja relative imports
+from cost_prophet.utils.linear_alebra import get_ranks_grid
 
 config = dotenv_values()
 
@@ -27,28 +23,28 @@ trials = 2
 # solver = SoftImputeWarmStarts(max_iters=1, min_value=0.2, convergence_threshold=0.0001, init_fill_method='mean', verbose=False)
 # df = experiment(solver, trials, X)
 
-solver_kwargs = OrderedDict({"max_iters":100,
-          "min_value": 0.2,
-          "convergence_threshold": 0.0001,
-          "init_fill_method": "mean",
-          "verbose": False})
-
-
-runner = ImputeRunner(solver_cls=SoftImputeWarmStarts, solver_kwargs=solver_kwargs, params=[{'shrinkage_values_number': 10}])
-runner.run(X, 5)
-
-
-# ranks = get_ranks_grid(X, 50)
 # solver_kwargs = OrderedDict({"max_iters":100,
 #           "min_value": 0.2,
-#           "convergence_threshold": 0.001,
+#           "convergence_threshold": 0.0001,
 #           "init_fill_method": "mean",
-#           "verbose": False,
-#           "gradual_rank_increase": False})
-# params = [{'rank': rank} for rank in ranks]
+#           "verbose": False})
 #
-# runner = ImputeRunner(solver_cls=IterativeSVD, solver_kwargs=solver_kwargs, params=params)
-# runner.run(X, 2)
+#
+# runner = ImputeRunner(solver_cls=SoftImputeWarmStarts, solver_kwargs=solver_kwargs, params=[{'shrinkage_values_number': 10}])
+# runner.run(X, 5)
+
+
+ranks = get_ranks_grid(X, 50)
+solver_kwargs = OrderedDict({"max_iters": 100,
+                             "min_value": 0.2,
+                             "convergence_threshold": 0.0001,
+                             "init_fill_method": "mean",
+                             "verbose": False,
+                             "gradual_rank_increase": False})
+params = [{'rank': rank} for rank in ranks]
+
+runner = ImputeRunner(solver_cls=IterativeSVD, solver_kwargs=solver_kwargs, params=params)
+runner.run(X, 5)
 
 # runner = SVTImputeRunner(svt_solve, {'kick_device': True}, [{'tau': None}])
 # runner.run(X, 2)

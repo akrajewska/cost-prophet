@@ -28,18 +28,15 @@ class ImputeRunner:
         results = self.tranform(outputs, X, param_set, test_indices, trial)
         return results
 
-    def tranform(self, outputs: list, X:np.ndarray, param_set: OrderedDict, test_indices:list, trial:int):
-        results = []
-        for shrinkage_value, X_out in outputs:
-            _test_error = test_error(X_out, X, test_indices)
-            results.append( list(param_set.values()) +[trial, shrinkage_value, _test_error])
-        _test_error = test_error(X_out, X, test_indices)
+    def tranform(self, outputs: np.ndarray, X:np.ndarray, param_set: OrderedDict, test_indices:list, trial:int):
+        _test_error = test_error(outputs, X, test_indices)
+        results = list(param_set.values()) +[trial, _test_error]
         return results
 
     def run_trial(self, X: np.ndarray, known_indices: list, param_set: OrderedDict, trial: int) -> list:
         test_indices, train_indices, X_train = split_tests_sets(known_indices, X)
         _test_error_data = self.solve(X, X_train, param_set, test_indices, trial)
-        return _test_error_data
+        return [_test_error_data]
 
     def run(self, X: np.ndarray, trials: int):
         errors = []
@@ -53,15 +50,26 @@ class ImputeRunner:
 
     def save_results(self, errors):
         columns = list(self.params[0].keys())
-        columns += ['trial', 'shrinkage_value', 'test_error']
+        columns += ['trial', 'test_error']
         df = pd.DataFrame(data=errors[0], columns=columns)
         df.to_csv(os.path.join(OUTPUT_DIR, f'{self.solver_cls.__name__}-{time()}'))
 
 
 class SoftImputeRunner(ImputeRunner):
 
-    def run_trial(self):
-        pass
+    def tranform(self, outputs: list, X:np.ndarray, param_set: OrderedDict, test_indices:list, trial:int):
+        results = []
+        for shrinkage_value, X_out in outputs:
+            _test_error = test_error(X_out, X, test_indices)
+            results.append( list(param_set.values()) +[trial, shrinkage_value, _test_error])
+        _test_error = test_error(X_out, X, test_indices)
+        return results
+
+    def save_results(self, errors):
+        columns = list(self.params[0].keys())
+        columns += ['trial', 'shrinkage_value', 'test_error']
+        df = pd.DataFrame(data=errors[0], columns=columns)
+        df.to_csv(os.path.join(OUTPUT_DIR, f'{self.solver_cls.__name__}-{time()}'))
 
 class SVTImputeRunner(ImputeRunner):
 
