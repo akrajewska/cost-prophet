@@ -14,13 +14,11 @@ def coherent_matrix():
     return A
 
 def matrix_scalar(A: np.ndarray, B: np.ndarray) -> float:
-    return np.trace(np.outer(A, B))
+    return np.trace(np.outer(A,B))
 
 def coherence(U: np.ndarray):
     return 2 * (np.linalg.norm((U @ np.array([1, 0])) * U))**2
 
-def get_coefficients(A: np.ndarray, orthonormal_base: list) -> tuple:
-    return tuple(matrix_scalar(base[i], A) for i in range(len(orthonormal_base)))
 
 def get_dual(base):
     alpha = -1 * base[0][0,1]/ base[1][0,1]
@@ -31,16 +29,22 @@ M[1,0] = 2
 M[0,0] = 2
 
 print(f"Matrix rank: {np.linalg.matrix_rank(M)}")
-U, s, VT = np.linalg.svd(M, full_matrices=False, compute_uv=True)
+U, s, VT = np.linalg.svd(M, full_matrices=True, compute_uv=True)
 
 print(f"U:\n{U}")
 print(f"VT:\n{VT}")
+print(f"Singular values {s}")
+
+def get_coefficients(A: np.ndarray, orthonormal_base: list) -> tuple:
+    l1 = U[:,0]@A@VT[0,:]
+    l2 = U[:,1]@A@VT[1,:]
+    return l1,l2
 
 M_norm = s.sum()
 print(f"M norm {M_norm}")
 base = [np.outer(U[:,0], VT[:,0]),  np.outer(U[:,1], VT[:,1])]
 print(f"Basis vector u1v1^T:\n{base[0]};\n Basis vector u2v2^T:\n{base[1]}")
-
+get_coefficients(M, base)
 
 x = np.arange(-5, 5, 0.1)
 y = np.arange(-5, 5, 0.1)
@@ -56,7 +60,7 @@ for i in np.arange(-10, 10, 0.5):
     coeffs = get_coefficients(A, base)
     if i == -10:
         plt.text(*(np.array(coeffs) * 1.01), "feasible set", fontsize=12)
-    plt.scatter(*coeffs, c='b', s=1.5)
+    plt.scatter(*get_coefficients(A, base), c='b', s=1.5)
 
 plt.scatter(1, get_dual(base), c='b')
 plt.text((1 + 0.01), get_dual(base) * (1.01), "Y", fontsize=12)
